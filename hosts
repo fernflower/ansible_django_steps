@@ -1,0 +1,10 @@
+# localhost ansible_connection=local
+[vm]
+# 192.168.0.77
+192.168.0.66
+
+[vm:vars]
+venv=/home/ina/.venv
+project_dir=/home/ina/django_steps
+pg_hba_conf=/etc/postgresql/9.4/main/pg_hba.conf
+django_superuser=ina

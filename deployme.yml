@@ -1,0 +1,77 @@
+- hosts: all
+
+  tasks:  
+
+    - include_vars: secret_vars.yml
+    - apt: update_cache=yes
+      sudo: yes
+
+    - name: set locales
+      shell: "echo 'LANGUAGE=\"en_US.UTF-8\"' >> /etc/default/locale"
+      shell: "echo 'LC_ALL=\"en_US.UTF-8\"' >> /etc/default/locale"
+      sudo: yes
+
+    - name: install system dependencies
+      apt: name={{item}} state=latest
+      with_items:
+          # an overkill, figre out what exactly is missing to build psycopg2 and co
+          - build-essential
+          - git
+          - virtualenv
+          - python3.4
+          - python3-dev
+          - libjpeg-dev
+          - libxml2-dev
+          - libxslt1-dev
+          - libfreetype6-dev
+          - libpq-dev
+          - python-psycopg2
+          - nginx
+          - postgresql-9.4
+          - postgresql-common 
+      sudo: yes
+    - name: restart postgres
+      service: name=postgresql state=restarted
+      sudo: yes
+
+    - name: checkout repo
+      git: repo=https://github.com/fernflower/django_steps.git dest={{project_dir}} update=no 
+
+    - name: create virtualenv for Python3 project
+      command: virtualenv {{venv}} -p /usr/bin/python3.4 creates="{{venv}}"
+
+    - name: install python dependencies into .venv
+      pip: virtualenv={{venv}} requirements="{{project_dir}}/requirements.txt"
+      environment: 
+          LC_ALL: "en_US.UTF-8"
+          LANG: "en_US.UTF-8"
+          LANGUAGE: "en_US.UTF-8"
+
+    - name: generate secret_settings.py
+      template: src=templates/secret_settings.j2 dest="{{project_dir}}/mysite/mysite/secret_settings.py"
+
+    - name: create database
+      postgresql_db: name={{dbname}}
+      sudo_user: postgres
+      sudo: yes
+    - name: create database user
+      postgresql_user: db={{dbname}} name={{dbuser}} password={{dbpass}}
+      sudo_user: postgres
+      sudo: yes
+    - name: change to md5 authentication 
+      lineinfile: dest={{pg_hba_conf}} regexp="^local\s+all\s+all\s+peer$"
+          insertafter="^host\s+all\s+all\s.+"
+          line="local    all           all            md5"
+      sudo: yes
+    - name: restart postgres
+      service: name=postgresql state=restarted
+      sudo: yes
+
+    - name: run django syncdb
+      django_manage: command=syncdb app_path="{{project_dir}}/mysite" virtualenv={{venv}}
+      register: db_create_result
+    - name: migrate South apps
+      django_manage: command=migrate app_path="{{project_dir}}/mysite" virtualenv={{venv}}
+    - name: create initial django superuser
+      shell: "{{venv}}/bin/python {{project_dir}}/mysite/change_admin_pass.py {{django_superuser}} {{django_superpass}}"
+      when: db_create_result|changed
