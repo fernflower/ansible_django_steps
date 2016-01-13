@@ -18,8 +18,8 @@
           - build-essential
           - git
           - virtualenv
-          - python3.4
-          - python3-dev
+          - python2.7
+          - python-dev
           - libjpeg-dev
           - libxml2-dev
           - libxslt1-dev
@@ -35,10 +35,10 @@
       sudo: yes
 
     - name: checkout repo
-      git: repo=https://github.com/fernflower/django_steps.git dest={{project_dir}} update=no 
+      git: repo=https://github.com/fernflower/django_steps.git dest={{project_dir}} update=no version=blog
 
     - name: create virtualenv for Python3 project
-      command: virtualenv {{venv}} -p /usr/bin/python3.4 creates="{{venv}}"
+      command: virtualenv {{venv}} -p /usr/bin/python2.7 creates="{{venv}}"
 
     - name: install python dependencies into .venv
       pip: virtualenv={{venv}} requirements="{{project_dir}}/requirements.txt"
